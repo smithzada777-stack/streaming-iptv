@@ -34,11 +34,14 @@ export const generatePushinPayPix = async (data: PixRequest) => {
 
         const responseData = response.data as any;
 
+        // Log completo para debug
+        console.log('PushinPay Response:', JSON.stringify(responseData, null, 2));
+
         return {
-            qr_code: responseData.qr_code,
-            qr_code_base64: responseData.qr_code_base64,
-            copy_paste: responseData.pix_code || responseData.copy_paste,
-            transaction_id: String(responseData.id).toLowerCase(), // Rule of gold: Lowercase IDs
+            qr_code: responseData.qr_code || responseData.qrCode || responseData.qrcode,
+            qr_code_base64: responseData.qr_code_base64 || responseData.qrCodeBase64 || responseData.base64,
+            copy_paste: responseData.pix_code || responseData.copy_paste || responseData.copyPaste || responseData.brcode,
+            transaction_id: String(responseData.id || responseData.transaction_id || responseData.transactionId).toLowerCase(),
         };
     } catch (error: any) {
         const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
