@@ -34,46 +34,48 @@ export const generatePushinPayPix = async (data: PixRequest) => {
 
         const responseData = response.data as any;
 
-        // Log completo para debug
+        // Log completo para debug (visível nos logs da Vercel)
         console.log('PushinPay Full Response:', JSON.stringify(responseData, null, 2));
+
+        // Tentar buscar na raiz ou dentro de .data
+        const root = responseData.data || responseData;
 
         // Mapeamento super robusto
         let qrCodeBase64 =
-            responseData.qr_code_base64 ||
-            responseData.qrCodeBase64 ||
-            responseData.base64 ||
-            responseData.qrcode_base64 ||
+            root.qr_code_base64 ||
+            root.qrCodeBase64 ||
+            root.base64 ||
+            root.qrcode_base64 ||
             null;
 
-        // Se não tiver base64, tentar achar imagem ou url
         const qrCodeUrl =
-            responseData.qr_code_image ||
-            responseData.qr_code_url ||
-            responseData.location ||
+            root.qr_code_image ||
+            root.qr_code_url ||
+            root.location ||
+            root.qr_code ||
             null;
 
         let pixCode =
-            responseData.pix_code ||
-            responseData.copy_paste ||
-            responseData.emv || // Código copia e cola
-            responseData.brcode ||
-            responseData.payload ||
+            root.pix_code ||
+            root.copy_paste ||
+            root.emv ||
+            root.brcode ||
+            root.payload ||
+            root.pix_code_copy_paste ||
             null;
 
         let transactionId =
-            responseData.id ||
-            responseData.transaction_id ||
-            responseData.transactionId ||
+            root.id ||
+            root.transaction_id ||
+            root.transactionId ||
             null;
-
-        // Se o transactionId estiver aninhado (algumas APIs fazem isso)
-        if (!transactionId && responseData.data?.id) transactionId = responseData.data.id;
 
         return {
             qrCode: qrCodeBase64 || qrCodeUrl,
             qrCodeBase64: qrCodeBase64,
             pixCode: pixCode,
             transactionId: String(transactionId).toLowerCase(),
+            raw: root // Passamos o raw para debug no front se precisar
         };
     } catch (error: any) {
         const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
