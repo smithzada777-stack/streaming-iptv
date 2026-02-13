@@ -70,10 +70,10 @@ export const generatePushinPayPix = async (data: PixRequest) => {
         if (!transactionId && responseData.data?.id) transactionId = responseData.data.id;
 
         return {
-            qr_code: qrCodeUrl,
-            qr_code_base64: qrCodeBase64,
-            copy_paste: pixCode,
-            transaction_id: String(transactionId).toLowerCase(),
+            qrCode: qrCodeBase64 || qrCodeUrl,
+            qrCodeBase64: qrCodeBase64,
+            pixCode: pixCode,
+            transactionId: String(transactionId).toLowerCase(),
         };
     } catch (error: any) {
         const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;

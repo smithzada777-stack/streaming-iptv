@@ -34,9 +34,9 @@ export async function POST(req: Request) {
                 plan,
                 value: parseFloat(value),
                 status: 'pendente',
-                transactionId: pixData.transaction_id,
-                pixCode: pixData.copy_paste, // Salvando para exibir no Dashboard
-                qrCode: pixData.qr_code_base64 || pixData.qr_code, // Salvando também
+                transactionId: pixData.transactionId,
+                pixCode: pixData.pixCode,
+                qrCode: pixData.qrCode,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
@@ -45,12 +45,11 @@ export async function POST(req: Request) {
             console.log('Salvo no Firebase com SUCESSO:', clientId);
         } catch (fbError: any) {
             console.error('ERRO FATAL AO SALVAR NO FIREBASE:', fbError);
-            // Mesmo com erro no Firebase, retornamos o Pix para o cliente pagar
         }
 
         // 3. Send "Pending" Email via Resend
         try {
-            await sendPendingEmail(email, name, pixData.copy_paste);
+            await sendPendingEmail(email, name, pixData.pixCode);
             console.log('Email pendente enviado.');
         } catch (emailError) {
             console.error('Erro ao enviar email:', emailError);
@@ -58,9 +57,9 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             success: true,
-            qrCode: pixData.qr_code_base64 || pixData.qr_code,
-            pixCode: pixData.copy_paste,
-            transactionId: pixData.transaction_id,
+            qrCode: pixData.qrCode,
+            pixCode: pixData.pixCode,
+            transactionId: pixData.transactionId,
         });
 
     } catch (error: any) {
