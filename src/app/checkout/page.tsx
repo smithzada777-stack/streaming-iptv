@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
     const searchParams = useSearchParams();
     const planParam = searchParams.get('plan') || '1-mes';
 
@@ -395,3 +395,11 @@ const styles: Record<string, React.CSSProperties> = {
         color: '#fff',
     },
 };
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#fff' }}>Carregando...</div>}>
+            <CheckoutContent />
+        </Suspense>
+    );
+}
