@@ -119,10 +119,15 @@ function CheckoutContent() {
                     <h1 style={styles.title}>Escaneie o QR Code</h1>
                     <p style={styles.subtitle}>Aguardando pagamento...</p>
 
-                    {pixData?.qrCode && (
+                    {/* QR Code Logic */}
+                    {(pixData?.qrCodeBase64 || pixData?.qrCode) && (
                         <div style={styles.qrContainer}>
                             <img
-                                src={`data:image/png;base64,${pixData.qrCode}`}
+                                src={
+                                    pixData.qrCodeBase64
+                                        ? `data:image/png;base64,${pixData.qrCodeBase64}`
+                                        : pixData.qrCode
+                                }
                                 alt="QR Code Pix"
                                 style={styles.qrCode}
                             />

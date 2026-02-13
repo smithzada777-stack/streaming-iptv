@@ -35,13 +35,45 @@ export const generatePushinPayPix = async (data: PixRequest) => {
         const responseData = response.data as any;
 
         // Log completo para debug
-        console.log('PushinPay Response:', JSON.stringify(responseData, null, 2));
+        console.log('PushinPay Full Response:', JSON.stringify(responseData, null, 2));
+
+        // Mapeamento super robusto
+        let qrCodeBase64 =
+            responseData.qr_code_base64 ||
+            responseData.qrCodeBase64 ||
+            responseData.base64 ||
+            responseData.qrcode_base64 ||
+            null;
+
+        // Se não tiver base64, tentar achar imagem ou url
+        const qrCodeUrl =
+            responseData.qr_code_image ||
+            responseData.qr_code_url ||
+            responseData.location ||
+            null;
+
+        let pixCode =
+            responseData.pix_code ||
+            responseData.copy_paste ||
+            responseData.emv || // Código copia e cola
+            responseData.brcode ||
+            responseData.payload ||
+            null;
+
+        let transactionId =
+            responseData.id ||
+            responseData.transaction_id ||
+            responseData.transactionId ||
+            null;
+
+        // Se o transactionId estiver aninhado (algumas APIs fazem isso)
+        if (!transactionId && responseData.data?.id) transactionId = responseData.data.id;
 
         return {
-            qr_code: responseData.qr_code || responseData.qrCode || responseData.qrcode,
-            qr_code_base64: responseData.qr_code_base64 || responseData.qrCodeBase64 || responseData.base64,
-            copy_paste: responseData.pix_code || responseData.copy_paste || responseData.copyPaste || responseData.brcode,
-            transaction_id: String(responseData.id || responseData.transaction_id || responseData.transactionId).toLowerCase(),
+            qr_code: qrCodeUrl,
+            qr_code_base64: qrCodeBase64,
+            copy_paste: pixCode,
+            transaction_id: String(transactionId).toLowerCase(),
         };
     } catch (error: any) {
         const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;

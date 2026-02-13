@@ -201,10 +201,15 @@ export default function GerarPixPage() {
                     <div className="card-redflix" style={{ ...styles.card, marginTop: '32px' }}>
                         <h2 style={styles.cardTitle}>Pix Gerado com Sucesso!</h2>
 
-                        {pixData.qrCode && (
+                        {/* QR Code Logic */}
+                        {(pixData.qrCodeBase64 || pixData.qrCode) && (
                             <div style={styles.qrContainer}>
                                 <img
-                                    src={`data:image/png;base64,${pixData.qrCode}`}
+                                    src={
+                                        pixData.qrCodeBase64
+                                            ? `data:image/png;base64,${pixData.qrCodeBase64}`
+                                            : pixData.qrCode
+                                    }
                                     alt="QR Code"
                                     style={styles.qrCode}
                                 />
