@@ -11,75 +11,74 @@ function initializeFirebase() {
   }
 
   let serviceAccount = null;
-  let serviceAccountStr = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '';
+  let serviceAccountStr = (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
 
-  try {
-    if (serviceAccountStr) {
-      // Limpeza agressiva para evitar SyntaxError comum no Vercel/Windows
-      serviceAccountStr = serviceAccountStr.trim();
-
-      // Remove aspas simples ou duplas que podem ter vindo do comando de colagem
+  if (serviceAccountStr) {
+    try {
+      // Remove aspas sobrando se o usuário colou com elas
       if ((serviceAccountStr.startsWith("'") && serviceAccountStr.endsWith("'")) ||
         (serviceAccountStr.startsWith('"') && serviceAccountStr.endsWith('"'))) {
         serviceAccountStr = serviceAccountStr.slice(1, -1);
       }
 
-      // Substitui quebras de linha reais por \n se o usuário colou o JSON "aberto"
-      // e garante que \n literais sejam tratados corretamente
-      serviceAccount = JSON.parse(serviceAccountStr);
+      // Tenta o parse direto
+      try {
+        serviceAccount = JSON.parse(serviceAccountStr);
+      } catch (parseError) {
+        // Se falhar, tenta escapar quebras de linha que podem estar "nuas"
+        const normalized = serviceAccountStr.replace(/\n/g, '\\n');
+        serviceAccount = JSON.parse(normalized);
+      }
+    } catch (finalError: any) {
+      console.error('Firebase: Falha crítica ao processar JSON das credenciais:', finalError.message);
     }
-  } catch (error) {
-    console.warn('Aviso: Falha ao processar FIREBASE_SERVICE_ACCOUNT_JSON. Verifique o formato do JSON.');
   }
 
-  // Fallback para arquivo local (útil em testes locais)
+  // Fallback para arquivo local (desenvolvimento)
   if (!serviceAccount) {
     try {
       const localFile = path.resolve(process.cwd(), 'redflix-iptv-3d47b-firebase-adminsdk-fbsvc-ca8f0cd6f6.json');
       if (fs.existsSync(localFile)) {
         serviceAccount = JSON.parse(fs.readFileSync(localFile, 'utf8'));
       }
-    } catch (e) {
-      // Silencioso se não houver arquivo local
-    }
+    } catch (e) { }
   }
 
   if (serviceAccount) {
-    // Garante que a chave privada tenha quebras de linha reais
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-    }
-
     try {
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
       firebaseApp = initializeApp({
         credential: cert(serviceAccount),
         projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
       });
+      console.log('Firebase: Inicializado com sucesso.');
       return firebaseApp;
-    } catch (error) {
-      console.error('Erro ao inicializar Firebase Admin:', error);
+    } catch (error: any) {
+      console.error('Firebase: Erro na inicialização do Admin SDK:', error.message);
     }
   }
 
   return null;
 }
 
-// Exporta um getter para o DB para evitar erro no build time se as chaves não estiverem prontas
-export const getDb = (): Firestore => {
-  const app = initializeFirebase();
-  if (!app) {
-    // Durante o build do Next.js, se não houver credenciais, retornamos uma instância "vazia" 
-    // ou deixamos falhar apenas no acesso real. 
-    // Mas para o build passar, precisamos que getFirestore() não exploda.
-    try {
-      return getFirestore();
-    } catch (e) {
-      console.warn('Firebase não inicializado. O DB não estará disponível.');
-      return null as any;
+// Exporta o banco de dados usando um Proxy para garantir que ele seja inicializado sob demanda 
+// e forneça erros claros se as variáveis de ambiente falharem.
+export const db: Firestore = new Proxy({} as Firestore, {
+  get(target, prop) {
+    const app = initializeFirebase();
+    if (!app) {
+      // Retorna null de forma controlada ou explode com erro explicativo
+      if (prop === 'collection' || prop === 'doc') {
+        throw new Error('Firebase não configurado ou FIREBASE_SERVICE_ACCOUNT_JSON inválido. Verifique o painel da Vercel.');
+      }
+      return undefined;
     }
+    const firestore = getFirestore(app);
+    return (firestore as any)[prop];
   }
-  return getFirestore(app);
-};
+});
 
-// Mantemos a exportação da constante para compatibilidade, mas usando o getter
-export const db = (typeof window === 'undefined') ? getDb() : null as any;
+export const getDb = () => db;
