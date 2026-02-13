@@ -4,13 +4,21 @@ import { sendApprovedEmail } from '@/services/resend';
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        console.log('Webhook PushPay received:', body);
+        let body;
+        const contentType = req.headers.get('content-type') || '';
 
-        // PushinPay usually sends status in 'status' field. 'paid' or 'approved'.
-        // We expect the transaction ID or reference to find the client.
-        const transactionId = body.id || body.transactionId;
-        const status = body.status;
+        if (contentType.includes('application/x-www-form-urlencoded')) {
+            const formData = await req.formData();
+            body = Object.fromEntries(formData.entries());
+        } else {
+            body = await req.json();
+        }
+
+        console.log('Webhook PushinPay received:', body);
+
+        // Rule of gold: Always handle transaction IDs in lowercase
+        const transactionId = String(body.id || body.transactionId).toLowerCase();
+        const status = String(body.status);
 
         if (status === 'paid' || status === 'approved' || status === '1') { // Adjust based on doc
             const clientQuery = await db.collection('clientes')

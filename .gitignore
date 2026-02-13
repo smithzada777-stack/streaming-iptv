@@ -24,6 +24,8 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+redflix-iptv-3d47b-firebase-adminsdk-fbsvc-ca8f0cd6f6.json
 
 # vercel
 .vercel

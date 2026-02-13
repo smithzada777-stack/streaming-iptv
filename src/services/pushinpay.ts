@@ -12,14 +12,18 @@ interface PixRequest {
 
 export const generatePushinPayPix = async (data: PixRequest) => {
     try {
-        // Note: User emphasized NO TOKEN. Using only Pix Key in payload if required.
-        // Based on PushinPay usual patterns, it might need the pix_key in the body.
         const response = await axios.post(PUSHINPAY_API_URL, {
             value: data.value,
             webhook_url: data.webhook_url,
-            pix_key: data.pix_key,
-            // Some platforms use 'reference' or 'external_id'
+            // Per instructions, we use the Token in Auth Header instead of pix_key in body if needed
+            // But if your account setup requires it, we keep reference
             reference: data.external_id,
+        }, {
+            headers: {
+                'Authorization': `Bearer ${process.env.VITE_PUSHINPAY_TOKEN}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
         });
 
         const responseData = response.data as any;
@@ -28,7 +32,7 @@ export const generatePushinPayPix = async (data: PixRequest) => {
             qr_code: responseData.qr_code,
             qr_code_base64: responseData.qr_code_base64,
             copy_paste: responseData.pix_code || responseData.copy_paste,
-            transaction_id: responseData.id,
+            transaction_id: String(responseData.id).toLowerCase(), // Rule of gold: Lowercase IDs
         };
     } catch (error: any) {
         console.error('Error generating Pix via PushinPay:', error.response?.data || error.message);

@@ -17,7 +17,7 @@ export async function POST(req: Request) {
         const pixData = await generatePushinPayPix({
             value: parseFloat(value),
             webhook_url: `${baseUrl}/api/pix/webhook`,
-            pix_key: process.env.PUSH_PAY_PIX_KEY || '',
+            pix_key: process.env.VITE_PUSHINPAY_TOKEN || '',
             external_id: email, // Using email as reference for simplicity
         });
 
