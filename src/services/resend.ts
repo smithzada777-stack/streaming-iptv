@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export const sendPendingEmail = async (email: string, name: string, pixCode: string) => {
     try {
         await resend.emails.send({
-            from: 'Streaming IPTV <noreply@streaming-iptv.com>',
+            from: 'onboarding@resend.dev', // Padrão seguro para evitar bloqueio sem domínio
             to: email,
             subject: 'Pagamento Pendente - Seu acesso está quase pronto!',
             html: `
@@ -28,7 +28,7 @@ export const sendPendingEmail = async (email: string, name: string, pixCode: str
 export const sendApprovedEmail = async (email: string, name: string, expirationDate: string) => {
     try {
         await resend.emails.send({
-            from: 'Streaming IPTV <noreply@streaming-iptv.com>',
+            from: 'onboarding@resend.dev', // Padrão seguro
             to: email,
             subject: 'Pagamento Aprovado! - Seu acesso está ATIVO',
             html: `
