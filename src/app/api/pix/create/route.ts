@@ -22,28 +22,41 @@ export async function POST(req: Request) {
         });
 
         // 2. Save to Firebase with "pendente" status
-        const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const clientData = {
-            id: clientId,
-            name,
-            email,
-            phone,
-            plan,
-            value: parseFloat(value),
-            status: 'pendente',
-            transactionId: pixData.transaction_id,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        };
+        console.log('Tentando salvar no Firebase...', jsonData);
 
-        await db.collection('clientes').doc(clientId).set(clientData);
+        try {
+            const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const clientData = {
+                id: clientId,
+                name,
+                email,
+                phone,
+                plan,
+                value: parseFloat(value),
+                status: 'pendente',
+                transactionId: pixData.transaction_id,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+
+            await db.collection('clientes').doc(clientId).set(clientData);
+            console.log('Salvo no Firebase com SUCESSO:', clientId);
+        } catch (fbError: any) {
+            console.error('ERRO FATAL AO SALVAR NO FIREBASE:', fbError);
+            // Mesmo com erro no Firebase, retornamos o Pix para o cliente pagar
+        }
 
         // 3. Send "Pending" Email via Resend
-        await sendPendingEmail(email, name, pixData.copy_paste);
+        try {
+            await sendPendingEmail(email, name, pixData.copy_paste);
+            console.log('Email pendente enviado.');
+        } catch (emailError) {
+            console.error('Erro ao enviar email:', emailError);
+        }
 
         return NextResponse.json({
             success: true,
-            qrCode: pixData.qr_code_base64,
+            qrCode: pixData.qr_code_base64 || pixData.qr_code,
             pixCode: pixData.copy_paste,
             transactionId: pixData.transaction_id,
         });
