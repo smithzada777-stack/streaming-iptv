@@ -134,13 +134,19 @@ function CheckoutContent() {
                         </div>
                     )}
 
-                    {pixData?.pixCode && (
+                    {(pixData.pixCode || pixData.copyPaste || pixData.copy_paste) && (
                         <div style={styles.pixCodeContainer}>
                             <p style={styles.pixLabel}>Ou copie o código Pix:</p>
                             <div style={styles.pixCodeBox}>
-                                <code style={styles.pixCode}>{pixData.pixCode}</code>
+                                <code style={styles.pixCode}>
+                                    {pixData.pixCode || pixData.copyPaste || pixData.copy_paste}
+                                </code>
                             </div>
-                            <button onClick={() => copyToClipboard(pixData.pixCode)} className="btn-primary" style={{ width: '100%' }}>
+                            <button
+                                onClick={() => copyToClipboard(pixData.pixCode || pixData.copyPaste || pixData.copy_paste)}
+                                className="btn-primary"
+                                style={{ width: '100%' }}
+                            >
                                 📋 Copiar Código
                             </button>
                         </div>

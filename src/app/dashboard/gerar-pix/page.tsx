@@ -216,14 +216,16 @@ export default function GerarPixPage() {
                             </div>
                         )}
 
-                        {pixData.pixCode && (
+                        {(pixData.pixCode || pixData.copyPaste || pixData.copy_paste) && (
                             <div style={styles.pixCodeContainer}>
-                                <p style={styles.pixLabel}>Código Pix:</p>
+                                <p style={styles.pixLabel}>Código Pix (Copia e Cola):</p>
                                 <div style={styles.pixCodeBox}>
-                                    <code style={styles.pixCode}>{pixData.pixCode}</code>
+                                    <code style={styles.pixCode}>
+                                        {pixData.pixCode || pixData.copyPaste || pixData.copy_paste}
+                                    </code>
                                 </div>
                                 <button
-                                    onClick={() => copyToClipboard(pixData.pixCode)}
+                                    onClick={() => copyToClipboard(pixData.pixCode || pixData.copyPaste || pixData.copy_paste)}
                                     className="btn-primary"
                                     style={{ width: '100%' }}
                                 >
@@ -231,10 +233,14 @@ export default function GerarPixPage() {
                                 </button>
                             </div>
                         )}
-                    </div>
-                )}
-            </div>
+                    </button>
+                            </div>
+                        )}
         </div>
+    )
+}
+            </div >
+        </div >
     );
 }
 
