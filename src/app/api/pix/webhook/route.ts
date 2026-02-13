@@ -30,13 +30,14 @@ export async function POST(req: Request) {
 
         // Normalização de dados
         const transactionId = (body.id || body.transactionId || body.transaction_id || '').toString().toLowerCase();
-        const status = (body.status || body.situation || '').toString().toLowerCase();
+        const status = (body.status || '').toString().toLowerCase();
 
         console.log(`Processando: TransactionID=${transactionId}, Status=${status}`);
 
         // Verificar se é status de pago
-        // PushinPay pode enviar: 'paid', 'approved', '1' (pago), 'COMPLETED'
-        const isPaid = ['paid', 'approved', '1', 'completed'].includes(status);
+        // PushinPay envia: 'paid' (confirmado), 'created' (criado), 'canceled' (cancelado)
+        // Documentação: https://app.theneo.io/pushinpay/pix/criar-pix
+        const isPaid = status === 'paid';
 
         if (isPaid && transactionId) {
             console.log('Pagamento confirmado! Buscando cliente...');
