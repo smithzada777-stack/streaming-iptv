@@ -1,93 +1,152 @@
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import fs from 'fs';
-import path from 'path';
+// Firebase usando API REST (sem firebase-admin para evitar problemas de JSON)
+// Baseado nas instruções do INSTRUCOES_PIX.md
 
-let firebaseApp: App | null = null;
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'redflix-iptv-3d47b';
+const FIRESTORE_API_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
-function initializeFirebase() {
-  if (getApps().length > 0) {
-    return getApps()[0];
-  }
+interface FirestoreDocument {
+  fields: Record<string, any>;
+}
 
-  let serviceAccount = null;
-  let serviceAccountStr = (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
-
-  if (serviceAccountStr) {
-    try {
-      // 1. Tenta detectar se é Base64 (comum para evitar erros de escape na Vercel)
-      if (!serviceAccountStr.startsWith('{') && !serviceAccountStr.startsWith('[') && !serviceAccountStr.startsWith("'") && !serviceAccountStr.startsWith('"')) {
-        try {
-          const decoded = Buffer.from(serviceAccountStr, 'base64').toString('utf-8');
-          if (decoded.startsWith('{')) {
-            serviceAccountStr = decoded;
-            console.log('Firebase: Credenciais decodificadas do formato Base64.');
-          }
-        } catch (e) { }
-      }
-
-      // 2. Limpeza profunda de aspas e quebras de linha
-      let cleanJson = serviceAccountStr.replace(/^['"]|['"]$/g, '').trim();
-
-      try {
-        serviceAccount = JSON.parse(cleanJson);
-      } catch (e1: any) {
-        // 3. Se falhar, tenta remover quebras de linha físicas e corrigir escapes de barra
-        const fixed = cleanJson
-          .replace(/\r?\n|\r/g, '') // Remove quebras de linha físicas
-          .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\'); // Escapa barras invertidas soltas
-
-        try {
-          serviceAccount = JSON.parse(fixed);
-        } catch (e2: any) {
-          throw new Error(`Erro de JSON: ${e2.message} na posição ${e2.message.match(/\d+/)?.[0] || '?'}`);
-        }
-      }
-    } catch (finalError: any) {
-      console.error('Firebase: Falha no processamento do JSON:', finalError.message);
-      throw finalError;
+function toFirestoreValue(value: any): any {
+  if (value === null || value === undefined) return { nullValue: null };
+  if (typeof value === 'string') return { stringValue: value };
+  if (typeof value === 'number') return { integerValue: value };
+  if (typeof value === 'boolean') return { booleanValue: value };
+  if (value instanceof Date) return { timestampValue: value.toISOString() };
+  if (typeof value === 'object') {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      fields[k] = toFirestoreValue(v);
     }
+    return { mapValue: { fields } };
   }
+  return { stringValue: String(value) };
+}
 
-  // Fallback local
-  if (!serviceAccount) {
-    try {
-      const localFile = path.resolve(process.cwd(), 'redflix-iptv-3d47b-firebase-adminsdk-fbsvc-ca8f0cd6f6.json');
-      if (fs.existsSync(localFile)) {
-        serviceAccount = JSON.parse(fs.readFileSync(localFile, 'utf8'));
-      }
-    } catch (e) { }
-  }
-
-  if (serviceAccount) {
-    try {
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
-
-      firebaseApp = initializeApp({
-        credential: cert(serviceAccount),
-        projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
-      });
-      return firebaseApp;
-    } catch (error: any) {
-      console.error('Firebase Admin SDK Error:', error.message);
-      throw error;
+function fromFirestoreValue(value: any): any {
+  if (!value) return null;
+  if (value.stringValue !== undefined) return value.stringValue;
+  if (value.integerValue !== undefined) return parseInt(value.integerValue);
+  if (value.booleanValue !== undefined) return value.booleanValue;
+  if (value.timestampValue !== undefined) return new Date(value.timestampValue);
+  if (value.mapValue?.fields) {
+    const obj: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value.mapValue.fields)) {
+      obj[k] = fromFirestoreValue(v);
     }
+    return obj;
   }
-
   return null;
 }
 
-export const db: Firestore = new Proxy({} as Firestore, {
-  get(target, prop) {
-    const app = initializeFirebase();
-    if (!app) {
-      throw new Error('Firebase não configurado. Verifique a variável FIREBASE_SERVICE_ACCOUNT_JSON.');
-    }
-    const firestore = getFirestore(app);
-    return (firestore as any)[prop];
-  }
-});
+export const db = {
+  collection: (collectionName: string) => ({
+    doc: (docId: string) => ({
+      set: async (data: Record<string, any>) => {
+        const fields: Record<string, any> = {};
+        for (const [key, value] of Object.entries(data)) {
+          fields[key] = toFirestoreValue(value);
+        }
+
+        const response = await fetch(
+          `${FIRESTORE_API_BASE}/${collectionName}/${docId}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Firestore set failed: ${response.statusText}`);
+        }
+        return response.json();
+      },
+
+      get: async () => {
+        const response = await fetch(
+          `${FIRESTORE_API_BASE}/${collectionName}/${docId}`
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            return { exists: false, data: () => null };
+          }
+          throw new Error(`Firestore get failed: ${response.statusText}`);
+        }
+
+        const doc = await response.json();
+        const data: Record<string, any> = {};
+        if (doc.fields) {
+          for (const [key, value] of Object.entries(doc.fields)) {
+            data[key] = fromFirestoreValue(value);
+          }
+        }
+
+        return {
+          exists: true,
+          data: () => data,
+        };
+      },
+
+      update: async (data: Record<string, any>) => {
+        const fields: Record<string, any> = {};
+        for (const [key, value] of Object.entries(data)) {
+          fields[key] = toFirestoreValue(value);
+        }
+
+        const response = await fetch(
+          `${FIRESTORE_API_BASE}/${collectionName}/${docId}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Firestore update failed: ${response.statusText}`);
+        }
+        return response.json();
+      },
+    }),
+
+    where: (field: string, op: string, value: any) => ({
+      get: async () => {
+        // Para queries simples, vamos fazer um scan (não ideal mas funciona)
+        const response = await fetch(
+          `${FIRESTORE_API_BASE}/${collectionName}`
+        );
+
+        if (!response.ok) {
+          throw new Error(`Firestore query failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        const docs = (result.documents || [])
+          .map((doc: any) => {
+            const data: Record<string, any> = {};
+            if (doc.fields) {
+              for (const [key, val] of Object.entries(doc.fields)) {
+                data[key] = fromFirestoreValue(val);
+              }
+            }
+            return {
+              id: doc.name.split('/').pop(),
+              data: () => data,
+            };
+          })
+          .filter((doc: any) => {
+            const docData = doc.data();
+            if (op === '==') return docData[field] === value;
+            return false;
+          });
+
+        return { docs, empty: docs.length === 0 };
+      },
+    }),
+  }),
+};
 
 export const getDb = () => db;
