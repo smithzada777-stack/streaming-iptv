@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
         }
 
         // Busca o cliente pelo transactionId
-        const clientQuery = await db.collection('clientes')
+        const clientQuery = await db.collection('payments')
             .where('transactionId', '==', transactionId.toLowerCase())
             .get();
 

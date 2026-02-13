@@ -35,21 +35,31 @@ function CheckoutContent() {
         return () => clearInterval(timer);
     }, [step]);
 
+    // Monitor payment status in real-time using Firebase onSnapshot
     useEffect(() => {
         if (!pixData?.transactionId) return;
-        const checkPayment = setInterval(async () => {
-            try {
-                const res = await fetch(`/api/pix/status?transactionId=${pixData.transactionId}`);
-                const data = await res.json();
-                if (data.status === 'aprovado') {
-                    setStep('approved');
-                    clearInterval(checkPayment);
-                }
-            } catch (error) {
-                console.error('Erro ao verificar status:', error);
-            }
-        }, 3000);
-        return () => clearInterval(checkPayment);
+
+        // Import Firebase client dynamically to avoid SSR issues
+        import('@/services/firebase-client').then(({ clientDb }) => {
+            import('firebase/firestore').then(({ collection, query, where, onSnapshot }) => {
+                const q = query(
+                    collection(clientDb, 'payments'),
+                    where('transactionId', '==', pixData.transactionId.toLowerCase())
+                );
+
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        console.log('Firebase onSnapshot - Status:', data.status);
+                        if (data.status === 'aprovado') {
+                            setStep('approved');
+                        }
+                    });
+                });
+
+                return () => unsubscribe();
+            });
+        });
     }, [pixData]);
 
     const handleSubmit = async (e: React.FormEvent) => {

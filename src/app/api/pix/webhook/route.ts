@@ -42,7 +42,7 @@ export async function POST(req: Request) {
             console.log('Pagamento confirmado! Buscando cliente...');
 
             // Buscar cliente pelo transactionId
-            const clientsRef = db.collection('clientes');
+            const clientsRef = db.collection('payments');
             const snapshot = await clientsRef.where('transactionId', '==', transactionId).get();
 
             if (snapshot.empty) {

@@ -3,7 +3,7 @@ import { db } from '@/services/firebase';
 
 export async function GET() {
     try {
-        const snapshot = await db.collection('clientes').orderBy('createdAt', 'desc').get();
+        const snapshot = await db.collection('payments').orderBy('createdAt', 'desc').get();
 
         if (snapshot.empty) {
             return NextResponse.json({ clients: [] });

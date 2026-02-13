@@ -41,7 +41,7 @@ export async function POST(req: Request) {
                 updatedAt: new Date().toISOString(),
             };
 
-            await db.collection('clientes').doc(clientId).set(clientData);
+            await db.collection('payments').doc(clientId).set(clientData);
             console.log('Salvo no Firebase com SUCESSO:', clientId);
         } catch (fbError: any) {
             console.error('ERRO FATAL AO SALVAR NO FIREBASE:', fbError);
