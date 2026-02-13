@@ -1,32 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 
-export default function CheckoutPage() {
-    const searchParams = useSearchParams();
-    const planParam = searchParams.get('plan') || '1-mes';
-
-    const plans = {
-        '1-mes': { name: '1 Mês', value: '29.90', oldValue: '39.90', months: 1, economy: '10.00' },
-        '3-meses': { name: '3 Meses', value: '79.90', oldValue: '89.70', months: 3, economy: '9.80' },
-        '6-meses': { name: '6 Meses', value: '149.90', oldValue: '179.40', months: 6, economy: '29.50' },
-    };
-
-    const currentPlan = plans[planParam as keyof typeof plans] || plans['1-mes'];
-
+export default function Checkout1Mes() {
     const [step, setStep] = useState<'form' | 'waiting' | 'approved'>('form');
     const [loading, setLoading] = useState(false);
     const [pixData, setPixData] = useState<any>(null);
-    const [timeLeft, setTimeLeft] = useState(600);
+    const [timeLeft, setTimeLeft] = useState(600); // 10 minutos
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
-        plan: currentPlan.name,
-        value: currentPlan.value
+        plan: '1 mês',
+        value: '29.90'
     });
 
+    // Timer regressivo
     useEffect(() => {
         if (step !== 'form') return;
         const timer = setInterval(() => {
@@ -35,6 +24,7 @@ export default function CheckoutPage() {
         return () => clearInterval(timer);
     }, [step]);
 
+    // Monitora pagamento
     useEffect(() => {
         if (!pixData?.transactionId) return;
         const checkPayment = setInterval(async () => {
@@ -97,9 +87,9 @@ export default function CheckoutPage() {
                     <div style={styles.successIcon}>✅</div>
                     <h1 style={styles.successTitle}>Pagamento confirmado com sucesso</h1>
                     <div style={styles.successDetails}>
-                        <p><strong>Plano:</strong> {currentPlan.name}</p>
-                        <p><strong>Valor:</strong> R$ {currentPlan.value}</p>
-                        <p><strong>Expira em:</strong> {new Date(Date.now() + currentPlan.months * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')}</p>
+                        <p><strong>Plano:</strong> 1 Mês</p>
+                        <p><strong>Valor:</strong> R$ 29,90</p>
+                        <p><strong>Expira em:</strong> {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')}</p>
                     </div>
                     <p style={styles.spamWarning}>
                         ⚠️ Verifique sua caixa de spam para o email de confirmação
@@ -160,19 +150,20 @@ export default function CheckoutPage() {
     return (
         <div style={styles.container}>
             <div style={styles.card}>
+                {/* Timer */}
                 <div style={styles.timer}>
                     ⏰ Oferta expira em: <strong>{formatTime(timeLeft)}</strong>
                 </div>
 
-                <h1 style={styles.title}>Plano {currentPlan.name} - Redflix</h1>
+                <h1 style={styles.title}>Plano 1 Mês - Redflix</h1>
 
                 <div style={styles.planBox}>
-                    <p style={styles.planName}>{currentPlan.name} Completo</p>
+                    <p style={styles.planName}>1 Mês Completo</p>
                     <div style={styles.pricing}>
-                        <span style={styles.oldPrice}>R$ {currentPlan.oldValue}</span>
-                        <span style={styles.newPrice}>R$ {currentPlan.value}</span>
+                        <span style={styles.oldPrice}>R$ 39,90</span>
+                        <span style={styles.newPrice}>R$ 29,90</span>
                     </div>
-                    <p style={styles.economy}>Economia de R$ {currentPlan.economy}</p>
+                    <p style={styles.economy}>Economia de R$ 10,00</p>
                 </div>
 
                 <form onSubmit={handleSubmit} style={styles.form}>

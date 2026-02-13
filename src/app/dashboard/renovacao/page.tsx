@@ -11,16 +11,14 @@ interface Client {
     plan: string;
     value: number;
     status: string;
-    transactionId: string;
-    createdAt: string;
-    approvedAt?: string;
     expiresAt?: string;
 }
 
-export default function DashboardPage() {
+export default function RenovacaoPage() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
+    const [discount, setDiscount] = useState(10);
 
     useEffect(() => {
         fetchClients();
@@ -30,7 +28,8 @@ export default function DashboardPage() {
         try {
             const res = await fetch('/api/admin/clients');
             const data = await res.json();
-            setClients(data.clients || []);
+            const approved = (data.clients || []).filter((c: Client) => c.status === 'aprovado');
+            setClients(approved);
         } catch (error) {
             console.error('Erro ao buscar clientes:', error);
         } finally {
@@ -38,19 +37,40 @@ export default function DashboardPage() {
         }
     };
 
-    const totalSales = clients.filter(c => c.status === 'aprovado').reduce((sum, c) => sum + c.value, 0);
-    const pendingSales = clients.filter(c => c.status === 'pendente').length;
-    const approvedCount = clients.filter(c => c.status === 'aprovado').length;
+    const getDaysUntilExpiry = (expiresAt?: string) => {
+        if (!expiresAt) return 0;
+        const expiry = new Date(expiresAt);
+        const today = new Date();
+        const diff = expiry.getTime() - today.getTime();
+        return Math.ceil(diff / (1000 * 60 * 60 * 24));
+    };
 
-    const planCounts = clients.reduce((acc: any, c) => {
-        acc[c.plan] = (acc[c.plan] || 0) + 1;
-        return acc;
-    }, {});
-    const mostSoldPlan = Object.keys(planCounts).reduce((a, b) => planCounts[a] > planCounts[b] ? a : b, '1 mês');
+    const calculateDiscountedPrice = (originalPrice: number) => {
+        return (originalPrice * (1 - discount / 100)).toFixed(2);
+    };
 
-    const openWhatsApp = (phone: string, name: string) => {
-        const message = encodeURIComponent(`Olá ${name}! Tudo bem?`);
-        window.open(`https://wa.me/55${phone.replace(/\D/g, '')}?text=${message}`, '_blank');
+    const sendRenewalOffer = (client: Client) => {
+        const discountedPrice = calculateDiscountedPrice(client.value);
+        const checkoutUrl = `${window.location.origin}/checkout?plan=${client.plan.toLowerCase().replace(' ', '-')}&discount=${discount}`;
+
+        const message = `🎉 *Oferta Especial de Renovação!* 🎉
+
+Olá ${client.name}! 👋
+
+Temos uma *oferta exclusiva* para você renovar sua assinatura Redflix! 🔥
+
+📦 *Plano:* ${client.plan}
+💰 *Valor Original:* R$ ${client.value.toFixed(2)}
+🎁 *Desconto:* ${discount}%
+✅ *Valor com Desconto:* R$ ${discountedPrice}
+
+Não perca essa oportunidade! Renove agora:
+${checkoutUrl}
+
+Qualquer dúvida, estamos à disposição! 😊`;
+
+        const encodedMessage = encodeURIComponent(message);
+        window.open(`https://wa.me/55${client.phone.replace(/\D/g, '')}?text=${encodedMessage}`, '_blank');
     };
 
     return (
@@ -82,84 +102,77 @@ export default function DashboardPage() {
 
             {/* Main Content */}
             <div style={{ ...styles.main, marginLeft: sidebarOpen ? '250px' : '70px' }}>
-                <div style={styles.header}>
-                    <h1 style={styles.title}>Dashboard</h1>
-                    <button onClick={fetchClients} className="btn-primary">
-                        🔄 Atualizar
-                    </button>
+                <h1 style={styles.title}>Renovação de Clientes</h1>
+
+                {/* Slider de Desconto */}
+                <div className="card-redflix" style={styles.discountCard}>
+                    <h2 style={styles.cardTitle}>Configurar Desconto</h2>
+                    <div style={styles.sliderContainer}>
+                        <input
+                            type="range"
+                            min="5"
+                            max="50"
+                            value={discount}
+                            onChange={e => setDiscount(parseInt(e.target.value))}
+                            style={styles.slider}
+                        />
+                        <div style={styles.discountValue}>{discount}% OFF</div>
+                    </div>
+                    <p style={styles.discountDesc}>
+                        Arraste o controle para definir o desconto que será aplicado na renovação
+                    </p>
                 </div>
 
-                {/* Cards de Estatísticas */}
-                <div style={styles.statsGrid}>
-                    <div className="card-redflix" style={styles.statCard}>
-                        <div style={styles.statIcon}>💰</div>
-                        <div style={styles.statValue}>R$ {totalSales.toFixed(2)}</div>
-                        <div style={styles.statLabel}>Total de Vendas</div>
-                    </div>
-
-                    <div className="card-redflix" style={styles.statCard}>
-                        <div style={styles.statIcon}>⏳</div>
-                        <div style={styles.statValue}>{pendingSales}</div>
-                        <div style={styles.statLabel}>Vendas Pendentes</div>
-                    </div>
-
-                    <div className="card-redflix" style={styles.statCard}>
-                        <div style={styles.statIcon}>📦</div>
-                        <div style={styles.statValue}>{mostSoldPlan}</div>
-                        <div style={styles.statLabel}>Plano Mais Vendido</div>
-                    </div>
-
-                    <div className="card-redflix" style={styles.statCard}>
-                        <div style={styles.statIcon}>✅</div>
-                        <div style={styles.statValue}>{approvedCount}</div>
-                        <div style={styles.statLabel}>Pagamentos Aprovados</div>
-                    </div>
-                </div>
-
-                {/* Tabela de Clientes */}
+                {/* Lista de Clientes */}
                 <div className="card-redflix" style={styles.tableCard}>
-                    <h2 style={styles.tableTitle}>Clientes</h2>
+                    <h2 style={styles.cardTitle}>Clientes Ativos</h2>
 
                     {loading ? (
                         <div style={styles.loading}>Carregando...</div>
                     ) : clients.length === 0 ? (
-                        <div style={styles.empty}>Nenhum cliente cadastrado</div>
+                        <div style={styles.empty}>Nenhum cliente ativo</div>
                     ) : (
                         <div style={styles.tableContainer}>
                             <table style={styles.table}>
                                 <thead>
                                     <tr style={styles.tableHeader}>
                                         <th style={styles.th}>Nome</th>
-                                        <th style={styles.th}>Data</th>
-                                        <th style={styles.th}>Hora</th>
-                                        <th style={styles.th}>Plano</th>
-                                        <th style={styles.th}>Status</th>
+                                        <th style={styles.th}>Telefone</th>
+                                        <th style={styles.th}>Plano Atual</th>
+                                        <th style={styles.th}>Dias para Expirar</th>
+                                        <th style={styles.th}>Valor Original</th>
+                                        <th style={styles.th}>Valor com Desconto</th>
                                         <th style={styles.th}>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {clients.map((client) => {
-                                        const date = new Date(client.createdAt);
+                                        const daysLeft = getDaysUntilExpiry(client.expiresAt);
+                                        const discountedPrice = calculateDiscountedPrice(client.value);
+
                                         return (
                                             <tr key={client.id} style={styles.tableRow}>
                                                 <td style={styles.td}>{client.name}</td>
-                                                <td style={styles.td}>{date.toLocaleDateString('pt-BR')}</td>
-                                                <td style={styles.td}>{date.toLocaleTimeString('pt-BR')}</td>
+                                                <td style={styles.td}>{client.phone}</td>
                                                 <td style={styles.td}>{client.plan}</td>
                                                 <td style={styles.td}>
                                                     <span style={{
                                                         ...styles.badge,
-                                                        ...(client.status === 'aprovado' ? styles.badgeGreen : styles.badgeYellow)
+                                                        ...(daysLeft <= 7 ? styles.badgeRed : daysLeft <= 15 ? styles.badgeYellow : styles.badgeGreen)
                                                     }}>
-                                                        {client.status}
+                                                        {daysLeft} dias
                                                     </span>
+                                                </td>
+                                                <td style={styles.td}>R$ {client.value.toFixed(2)}</td>
+                                                <td style={styles.td}>
+                                                    <strong style={{ color: '#22c55e' }}>R$ {discountedPrice}</strong>
                                                 </td>
                                                 <td style={styles.td}>
                                                     <button
-                                                        onClick={() => openWhatsApp(client.phone, client.name)}
+                                                        onClick={() => sendRenewalOffer(client)}
                                                         style={styles.whatsappBtn}
                                                     >
-                                                        💬 WhatsApp
+                                                        💬 Enviar Oferta
                                                     </button>
                                                 </td>
                                             </tr>
@@ -243,53 +256,47 @@ const styles: Record<string, React.CSSProperties> = {
         padding: '40px',
         transition: 'margin-left 0.3s ease',
     },
-    header: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px',
-    },
     title: {
         fontSize: '32px',
         fontWeight: 900,
         color: '#fff',
-    },
-    statsGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '20px',
         marginBottom: '32px',
     },
-    statCard: {
-        textAlign: 'center',
-        padding: '32px 24px',
-    },
-    statIcon: {
-        fontSize: '40px',
-        marginBottom: '12px',
-    },
-    statValue: {
-        fontSize: '32px',
-        fontWeight: 900,
-        color: '#dc2626',
-        marginBottom: '8px',
-    },
-    statLabel: {
-        fontSize: '14px',
-        color: '#a3a3a3',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-    },
-    tableCard: {
+    discountCard: {
         padding: '32px',
+        marginBottom: '32px',
     },
-    tableTitle: {
-        fontSize: '24px',
+    cardTitle: {
+        fontSize: '20px',
         fontWeight: 800,
         color: '#fff',
         marginBottom: '24px',
+    },
+    sliderContainer: {
+        marginBottom: '16px',
+    },
+    slider: {
+        width: '100%',
+        height: '8px',
+        borderRadius: '4px',
+        background: '#1a1a1a',
+        outline: 'none',
+        marginBottom: '16px',
+    },
+    discountValue: {
+        fontSize: '48px',
+        fontWeight: 900,
+        color: '#dc2626',
+        textAlign: 'center',
+        marginBottom: '8px',
+    },
+    discountDesc: {
+        fontSize: '14px',
+        color: '#a3a3a3',
+        textAlign: 'center',
+    },
+    tableCard: {
+        padding: '32px',
     },
     tableContainer: {
         overflowX: 'auto',
@@ -312,7 +319,6 @@ const styles: Record<string, React.CSSProperties> = {
     },
     tableRow: {
         borderBottom: '1px solid #1a1a1a',
-        transition: 'background 0.2s ease',
     },
     td: {
         padding: '16px',
@@ -324,7 +330,6 @@ const styles: Record<string, React.CSSProperties> = {
         borderRadius: '12px',
         fontSize: '12px',
         fontWeight: 700,
-        textTransform: 'uppercase',
     },
     badgeGreen: {
         background: 'rgba(34, 197, 94, 0.2)',
@@ -333,6 +338,10 @@ const styles: Record<string, React.CSSProperties> = {
     badgeYellow: {
         background: 'rgba(245, 158, 11, 0.2)',
         color: '#f59e0b',
+    },
+    badgeRed: {
+        background: 'rgba(220, 38, 38, 0.2)',
+        color: '#dc2626',
     },
     whatsappBtn: {
         background: '#22c55e',
@@ -343,7 +352,6 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: '12px',
         fontWeight: 700,
         cursor: 'pointer',
-        transition: 'transform 0.2s ease',
     },
     loading: {
         textAlign: 'center',
