@@ -14,24 +14,30 @@ function initializeFirebase() {
   let serviceAccountStr = (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
 
   if (serviceAccountStr) {
-    console.log(`Firebase: Chave encontrada. Tamanho: ${serviceAccountStr.length} caracteres.`);
     try {
-      // Limpeza de aspas de qualquer tipo
+      // Remove aspas simples/duplas externas se existirem
       serviceAccountStr = serviceAccountStr.replace(/^['"]|['"]$/g, '');
 
       // Tenta o parse direto
       try {
         serviceAccount = JSON.parse(serviceAccountStr);
-      } catch (parseError) {
-        // Tenta limpar quebras de linha reais
-        const normalized = serviceAccountStr.replace(/\n/g, '\\n');
-        serviceAccount = JSON.parse(normalized);
+      } catch (e1: any) {
+        // Se falhar, tenta remover quebras de linha FÍSICAS (comuns ao colar no Vercel)
+        // mas mantém os \n literais (barra + n)
+        const simplified = serviceAccountStr
+          .replace(/\r?\n|\r/g, '') // Remove quebras de linha físicas
+          .trim();
+
+        try {
+          serviceAccount = JSON.parse(simplified);
+        } catch (e2: any) {
+          throw new Error(`Erro de JSON: ${e2.message} (na posição ${e2.message.match(/\d+/)?.[0] || 'desconhecida'})`);
+        }
       }
     } catch (finalError: any) {
-      console.error('Firebase: Falha crítica no parse do JSON:', finalError.message);
+      console.error('Firebase: Falha crítica ao processar JSON:', finalError.message);
+      throw finalError;
     }
-  } else {
-    console.warn('Firebase: Variável FIREBASE_SERVICE_ACCOUNT_JSON está VAZIA no servidor.');
   }
 
   // Fallback para arquivo local (desenvolvimento)
@@ -47,6 +53,7 @@ function initializeFirebase() {
   if (serviceAccount) {
     try {
       if (serviceAccount.private_key) {
+        // Corrige o formato da chave privada (crucial para o Firebase)
         serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
       }
 
@@ -58,6 +65,7 @@ function initializeFirebase() {
       return firebaseApp;
     } catch (error: any) {
       console.error('Firebase: Erro no Admin SDK:', error.message);
+      throw new Error(`Firebase Admin SDK Error: ${error.message}`);
     }
   }
 
@@ -66,13 +74,17 @@ function initializeFirebase() {
 
 export const db: Firestore = new Proxy({} as Firestore, {
   get(target, prop) {
-    const app = initializeFirebase();
-    if (!app) {
-      const envStatus = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? `Existe (Tamanho: ${process.env.FIREBASE_SERVICE_ACCOUNT_JSON.length})` : 'Não existe';
-      throw new Error(`Firebase não inicializado. Variável FIREBASE_SERVICE_ACCOUNT_JSON: ${envStatus}. Verifique se fez o Redeploy na Vercel.`);
+    try {
+      const app = initializeFirebase();
+      if (!app) {
+        throw new Error('As credenciais do Firebase não foram encontradas. Verifique a variável FIREBASE_SERVICE_ACCOUNT_JSON.');
+      }
+      const firestore = getFirestore(app);
+      return (firestore as any)[prop];
+    } catch (err: any) {
+      // Repassa o erro de forma que apareça no alert do frontend
+      throw err;
     }
-    const firestore = getFirestore(app);
-    return (firestore as any)[prop];
   }
 });
 
