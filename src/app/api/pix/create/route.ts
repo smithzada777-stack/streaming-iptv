@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/services/firebase';
-import { generatePushPayPix } from '@/services/pushpay';
+import { generatePushinPayPix } from '@/services/pushinpay';
 import { sendPendingEmail } from '@/services/resend';
 
 export async function POST(req: Request) {
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
         // 1. Generate Pix via PushPay
         const baseUrl = process.env.BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-        const pixData = await generatePushPayPix({
+        const pixData = await generatePushinPayPix({
             value: parseFloat(value),
             webhook_url: `${baseUrl}/api/pix/webhook`,
             pix_key: process.env.PUSH_PAY_PIX_KEY || '',

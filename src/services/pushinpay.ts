@@ -10,7 +10,7 @@ interface PixRequest {
     external_id?: string;
 }
 
-export const generatePushPayPix = async (data: PixRequest) => {
+export const generatePushinPayPix = async (data: PixRequest) => {
     try {
         // Note: User emphasized NO TOKEN. Using only Pix Key in payload if required.
         // Based on PushinPay usual patterns, it might need the pix_key in the body.
@@ -31,7 +31,7 @@ export const generatePushPayPix = async (data: PixRequest) => {
             transaction_id: responseData.id,
         };
     } catch (error: any) {
-        console.error('Error generating Pix via PushPay:', error.response?.data || error.message);
+        console.error('Error generating Pix via PushinPay:', error.response?.data || error.message);
         throw new Error('Falha ao gerar Pix');
     }
 };
