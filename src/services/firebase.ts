@@ -15,32 +15,41 @@ function initializeFirebase() {
 
   if (serviceAccountStr) {
     try {
-      // Remove aspas simples/duplas externas se existirem
-      serviceAccountStr = serviceAccountStr.replace(/^['"]|['"]$/g, '');
+      // 1. Tenta detectar se é Base64 (comum para evitar erros de escape na Vercel)
+      if (!serviceAccountStr.startsWith('{') && !serviceAccountStr.startsWith('[') && !serviceAccountStr.startsWith("'") && !serviceAccountStr.startsWith('"')) {
+        try {
+          const decoded = Buffer.from(serviceAccountStr, 'base64').toString('utf-8');
+          if (decoded.startsWith('{')) {
+            serviceAccountStr = decoded;
+            console.log('Firebase: Credenciais decodificadas do formato Base64.');
+          }
+        } catch (e) { }
+      }
 
-      // Tenta o parse direto
+      // 2. Limpeza profunda de aspas e quebras de linha
+      let cleanJson = serviceAccountStr.replace(/^['"]|['"]$/g, '').trim();
+
       try {
-        serviceAccount = JSON.parse(serviceAccountStr);
+        serviceAccount = JSON.parse(cleanJson);
       } catch (e1: any) {
-        // Se falhar, tenta remover quebras de linha FÍSICAS (comuns ao colar no Vercel)
-        // mas mantém os \n literais (barra + n)
-        const simplified = serviceAccountStr
+        // 3. Se falhar, tenta remover quebras de linha físicas e corrigir escapes de barra
+        const fixed = cleanJson
           .replace(/\r?\n|\r/g, '') // Remove quebras de linha físicas
-          .trim();
+          .replace(/\\(?!["\\\/bfnrtu])/g, '\\\\'); // Escapa barras invertidas soltas
 
         try {
-          serviceAccount = JSON.parse(simplified);
+          serviceAccount = JSON.parse(fixed);
         } catch (e2: any) {
-          throw new Error(`Erro de JSON: ${e2.message} (na posição ${e2.message.match(/\d+/)?.[0] || 'desconhecida'})`);
+          throw new Error(`Erro de JSON: ${e2.message} na posição ${e2.message.match(/\d+/)?.[0] || '?'}`);
         }
       }
     } catch (finalError: any) {
-      console.error('Firebase: Falha crítica ao processar JSON:', finalError.message);
+      console.error('Firebase: Falha no processamento do JSON:', finalError.message);
       throw finalError;
     }
   }
 
-  // Fallback para arquivo local (desenvolvimento)
+  // Fallback local
   if (!serviceAccount) {
     try {
       const localFile = path.resolve(process.cwd(), 'redflix-iptv-3d47b-firebase-adminsdk-fbsvc-ca8f0cd6f6.json');
@@ -53,7 +62,6 @@ function initializeFirebase() {
   if (serviceAccount) {
     try {
       if (serviceAccount.private_key) {
-        // Corrige o formato da chave privada (crucial para o Firebase)
         serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
       }
 
@@ -61,11 +69,10 @@ function initializeFirebase() {
         credential: cert(serviceAccount),
         projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
       });
-      console.log('Firebase: Inicializado com sucesso.');
       return firebaseApp;
     } catch (error: any) {
-      console.error('Firebase: Erro no Admin SDK:', error.message);
-      throw new Error(`Firebase Admin SDK Error: ${error.message}`);
+      console.error('Firebase Admin SDK Error:', error.message);
+      throw error;
     }
   }
 
@@ -74,17 +81,12 @@ function initializeFirebase() {
 
 export const db: Firestore = new Proxy({} as Firestore, {
   get(target, prop) {
-    try {
-      const app = initializeFirebase();
-      if (!app) {
-        throw new Error('As credenciais do Firebase não foram encontradas. Verifique a variável FIREBASE_SERVICE_ACCOUNT_JSON.');
-      }
-      const firestore = getFirestore(app);
-      return (firestore as any)[prop];
-    } catch (err: any) {
-      // Repassa o erro de forma que apareça no alert do frontend
-      throw err;
+    const app = initializeFirebase();
+    if (!app) {
+      throw new Error('Firebase não configurado. Verifique a variável FIREBASE_SERVICE_ACCOUNT_JSON.');
     }
+    const firestore = getFirestore(app);
+    return (firestore as any)[prop];
   }
 });
 
