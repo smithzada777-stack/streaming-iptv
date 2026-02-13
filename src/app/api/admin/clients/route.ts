@@ -3,40 +3,26 @@ import { db } from '@/services/firebase';
 
 export async function GET() {
     try {
-        // Busca todos os clientes
-        const response = await fetch(
-            `https://firestore.googleapis.com/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents/clientes`
-        );
+        const snapshot = await db.collection('clientes').orderBy('createdAt', 'desc').get();
 
-        if (!response.ok) {
+        if (snapshot.empty) {
             return NextResponse.json({ clients: [] });
         }
 
-        const data = await response.json();
-        const clients = (data.documents || []).map((doc: any) => {
-            const fields = doc.fields || {};
+        const clients = snapshot.docs.map(doc => {
+            const data = doc.data();
             return {
-                id: fields.id?.stringValue || '',
-                name: fields.name?.stringValue || '',
-                email: fields.email?.stringValue || '',
-                phone: fields.phone?.stringValue || '',
-                plan: fields.plan?.stringValue || '',
-                value: parseFloat(fields.value?.integerValue || fields.value?.doubleValue || 0),
-                status: fields.status?.stringValue || '',
-                transactionId: fields.transactionId?.stringValue || '',
-                createdAt: fields.createdAt?.timestampValue || fields.createdAt?.stringValue || '',
-                approvedAt: fields.approvedAt?.timestampValue || fields.approvedAt?.stringValue,
-                expiresAt: fields.expiresAt?.timestampValue || fields.expiresAt?.stringValue,
+                id: doc.id,
+                ...data,
+                // Garantir timestamp correto se vier como objeto Timestamp do Firestore
+                createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+                updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+                approvedAt: data.approvedAt?.toDate ? data.approvedAt.toDate().toISOString() : data.approvedAt,
+                expiresAt: data.expiresAt?.toDate ? data.expiresAt.toDate().toISOString() : data.expiresAt,
             };
         });
 
-        // Ordena por data de criação (mais recentes primeiro)
-        clients.sort((a: any, b: any) => {
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-
         return NextResponse.json({ clients });
-
     } catch (error: any) {
         console.error('Error fetching clients:', error);
         return NextResponse.json({ clients: [], error: error.message }, { status: 500 });
