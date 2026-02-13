@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,7 +12,9 @@ interface Client {
     plan: string;
     value: number;
     status: string;
-    transactionId: string;
+    transactionId?: string;
+    pixCode?: string;     // Adicionado
+    qrCode?: string;      // Adicionado
     createdAt: string;
     approvedAt?: string;
     expiresAt?: string;
@@ -21,6 +24,12 @@ export default function DashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Função para copiar Pix
+    const copyPix = (pixCode: string) => {
+        navigator.clipboard.writeText(pixCode);
+        alert('Código Pix copiado!');
+    };
 
     useEffect(() => {
         fetchClients();
@@ -155,12 +164,25 @@ export default function DashboardPage() {
                                                     </span>
                                                 </td>
                                                 <td style={styles.td}>
-                                                    <button
-                                                        onClick={() => openWhatsApp(client.phone, client.name)}
-                                                        style={styles.whatsappBtn}
-                                                    >
-                                                        💬 WhatsApp
-                                                    </button>
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <button
+                                                            onClick={() => openWhatsApp(client.phone, client.name)}
+                                                            style={styles.whatsappBtn}
+                                                        >
+                                                            💬 WhatsApp
+                                                        </button>
+
+                                                        {/* Se estiver pendente e tiver código, mostrar botão de copiar pix */}
+                                                        {client.status === 'pendente' && client.pixCode && (
+                                                            <button
+                                                                onClick={() => copyPix(client.pixCode!)}
+                                                                style={{ ...styles.whatsappBtn, background: '#f59e0b' }}
+                                                                title="Copiar Pix"
+                                                            >
+                                                                📋 Pix
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );

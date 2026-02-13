@@ -35,6 +35,8 @@ export async function POST(req: Request) {
                 value: parseFloat(value),
                 status: 'pendente',
                 transactionId: pixData.transaction_id,
+                pixCode: pixData.copy_paste, // Salvando para exibir no Dashboard
+                qrCode: pixData.qr_code_base64 || pixData.qr_code, // Salvando também
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
