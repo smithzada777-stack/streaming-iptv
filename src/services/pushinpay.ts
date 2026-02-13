@@ -11,6 +11,12 @@ interface PixRequest {
 }
 
 export const generatePushinPayPix = async (data: PixRequest) => {
+    const token = process.env.VITE_PUSHINPAY_TOKEN || process.env.PUSHINPAY_TOKEN;
+
+    if (!token) {
+        throw new Error('Configuração ausente: VITE_PUSHINPAY_TOKEN não encontrado nas variáveis de ambiente.');
+    }
+
     try {
         const response = await axios.post(PUSHINPAY_API_URL, {
             value: data.value,
@@ -20,7 +26,7 @@ export const generatePushinPayPix = async (data: PixRequest) => {
             reference: data.external_id,
         }, {
             headers: {
-                'Authorization': `Bearer ${process.env.VITE_PUSHINPAY_TOKEN}`,
+                'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             }
@@ -35,7 +41,8 @@ export const generatePushinPayPix = async (data: PixRequest) => {
             transaction_id: String(responseData.id).toLowerCase(), // Rule of gold: Lowercase IDs
         };
     } catch (error: any) {
-        console.error('Error generating Pix via PushinPay:', error.response?.data || error.message);
-        throw new Error('Falha ao gerar Pix');
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+        console.error('Error generating Pix via PushinPay:', errorMessage);
+        throw new Error(`Falha na PushinPay: ${errorMessage}`);
     }
 };

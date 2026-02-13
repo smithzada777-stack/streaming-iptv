@@ -50,6 +50,10 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error('API Error (create-pix):', error);
-        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({
+            success: false,
+            error: error.message || 'Internal Server Error',
+            details: error.response?.data || null
+        }, { status: 500 });
     }
 }
