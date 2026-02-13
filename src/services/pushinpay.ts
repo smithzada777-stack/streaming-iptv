@@ -19,7 +19,7 @@ export const generatePushinPayPix = async (data: PixRequest) => {
 
     try {
         const response = await axios.post(PUSHINPAY_API_URL, {
-            value: data.value,
+            value: Math.round(data.value * 100), // Converte R$ para centavos
             webhook_url: data.webhook_url,
             // Per instructions, we use the Token in Auth Header instead of pix_key in body if needed
             // But if your account setup requires it, we keep reference
