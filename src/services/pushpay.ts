@@ -22,11 +22,13 @@ export const generatePushPayPix = async (data: PixRequest) => {
             reference: data.external_id,
         });
 
+        const responseData = response.data as any;
+
         return {
-            qr_code: response.data.qr_code,
-            qr_code_base64: response.data.qr_code_base64,
-            copy_paste: response.data.pix_code || response.data.copy_paste,
-            transaction_id: response.data.id,
+            qr_code: responseData.qr_code,
+            qr_code_base64: responseData.qr_code_base64,
+            copy_paste: responseData.pix_code || responseData.copy_paste,
+            transaction_id: responseData.id,
         };
     } catch (error: any) {
         console.error('Error generating Pix via PushPay:', error.response?.data || error.message);
