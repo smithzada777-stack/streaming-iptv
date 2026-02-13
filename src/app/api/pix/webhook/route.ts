@@ -23,7 +23,6 @@ export async function POST(req: Request) {
         if (status === 'paid' || status === 'approved' || status === '1') { // Adjust based on doc
             const clientQuery = await db.collection('clientes')
                 .where('transactionId', '==', transactionId.toString())
-                .limit(1)
                 .get();
 
             if (clientQuery.empty) {
