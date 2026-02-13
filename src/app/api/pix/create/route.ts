@@ -22,9 +22,9 @@ export async function POST(req: Request) {
         });
 
         // 2. Save to Firebase with "pendente" status
-        const clientRef = db.collection('clientes').doc();
+        const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const clientData = {
-            id: clientRef.id,
+            id: clientId,
             name,
             email,
             phone,
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
             updatedAt: new Date().toISOString(),
         };
 
-        await clientRef.set(clientData);
+        await db.collection('clientes').doc(clientId).set(clientData);
 
         // 3. Send "Pending" Email via Resend
         await sendPendingEmail(email, name, pixData.copy_paste);
