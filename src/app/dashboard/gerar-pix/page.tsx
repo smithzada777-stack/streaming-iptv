@@ -232,14 +232,11 @@ export default function GerarPixPage() {
                                     📋 Copiar Código
                                 </button>
                             </div>
-                        )}
-                    </button>
                             </div>
-                        )}
+                )}
+            </div>
+                )}
         </div>
-    )
-}
-            </div >
         </div >
     );
 }
