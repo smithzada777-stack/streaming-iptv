@@ -22,7 +22,7 @@ export async function POST(req: Request) {
         });
 
         // 2. Save to Firebase with "pendente" status
-        console.log('Tentando salvar no Firebase...', jsonData);
+        console.log('Tentando salvar no Firebase...', { name, email, plan, value });
 
         try {
             const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
